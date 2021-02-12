@@ -1,0 +1,11 @@
+apiVersion: v1
+data:
+  CV_COMMCELL_PWD: Commvault!12
+  CV_COMMCELL_USER: admin
+  CV_CSCLIENTNAME: cs
+  CV_CSHOSTNAME: TM2-CJVM01.testlab.commvault.com
+  CV_CSIPADDR: 172.24.29.83
+  CV_CLIENTGROUP: container_proxy
+kind: ConfigMap
+metadata:
+  name: cv-agent

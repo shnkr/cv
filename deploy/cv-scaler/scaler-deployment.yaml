@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cv-scaler
+  labels:
+    app: cv-scaler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cv-scaler
+  template:
+    metadata:
+      labels:
+        app: cv-scaler
+    spec:
+      serviceAccountName: cv-scaler
+      containers:
+      - name: cvscaler
+        image: commvaultrepo/scaler:test
+        command:
+        - /cvscaler
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "0.1"

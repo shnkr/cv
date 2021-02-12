@@ -1,0 +1,28 @@
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cv-agent-o365-win
+  annotations:
+    metric-config.external.prometheus-query.prometheus/o365-active-workers: |
+      scalar(redis_key_size{key="o365-workers-busy"} OR on() vector(0)) + (scalar(redis_key_size{key="o365-jobs-pending"} OR on() vector(0))/2)
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cv-agent-o365-win
+  minReplicas: 1
+  maxReplicas: 5
+  behavior:
+    scaleDown:
+      selectPolicy: Disabled
+  metrics:
+  - type: External
+    external:
+      metric:
+        name: prometheus-query
+        selector:
+          matchLabels:
+            query-name: o365-active-workers
+      target:
+        type: AverageValue
+        averageValue: "1"

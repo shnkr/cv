@@ -1,0 +1,34 @@
+kind: ConfigMap
+metadata:
+  name: grok-exporter-gateway
+apiVersion: v1
+data:
+  config.yml: |-
+
+    global:
+      config_version: 2
+    input:
+      type: file
+      fail_on_missing_logfile: false
+      paths:
+      - /usr/share/app_log/cvfwd.log
+      - /usr/share/app_log/CvInstallClient.log
+      readall: false
+
+    grok:
+      patterns_dir: ./patterns
+
+    metrics:
+      - type: counter
+        name: activity
+        help: activity on the node
+        path: /usr/share/app_log/cvfwd.log
+        match: '%{GREEDYDATA}'
+
+      - type: counter
+        name: cv_gateway_agents_ready
+        help: gateway agents ready
+        path: /usr/share/app_log/CvInstallClient.log
+        match: '%{GREEDYDATA}Processed request to synchronize package information%{GREEDYDATA}'
+    server:
+      port: 9144

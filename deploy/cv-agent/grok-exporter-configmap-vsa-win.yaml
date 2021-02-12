@@ -1,0 +1,45 @@
+kind: ConfigMap
+metadata:
+  name: grok-exporter-vsa-win
+apiVersion: v1
+data:
+  config.yml: |-
+
+    global:
+      config_version: 2
+    input:
+      type: file
+      fail_on_missing_logfile: false
+      paths:
+      - /usr/share/app_log/vsbkp.log
+      - /usr/share/app_log/cvfwd.log
+      - /usr/share/app_log/CvInstallClient.log
+      readall: false
+    grok:
+      patterns_dir: ./patterns
+    metrics:
+      - type: counter
+        name: vsa_backup_start_count
+        help: starting of vsa backup
+        path: /usr/share/app_log/vsbkp.log
+        match: '%{GREEDYDATA}Processing VM%{GREEDYDATA} using child job %{GREEDYDATA}'
+
+      - type: counter
+        name: vsa_backup_end_count
+        help: completion of vsa backup
+        path: /usr/share/app_log/vsbkp.log
+        match: '%{GREEDYDATA}VSBkpWorker::HandleVMComplete_Status%{GREEDYDATA}'
+
+      - type: counter
+        name: activity
+        help: activity on the node
+        path: /usr/share/app_log/cvfwd.log
+        match: '%{GREEDYDATA}'
+
+      - type: counter
+        name: cv_worker_ready
+        help: proxy worker ready
+        path: /usr/share/app_log/CvInstallClient.log
+        match: '%{GREEDYDATA}Processed request to synchronize package information%{GREEDYDATA}'
+    server:
+      port: 9144

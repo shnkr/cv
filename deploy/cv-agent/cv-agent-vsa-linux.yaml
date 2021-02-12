@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: cv-agent-vsa-linux
+  namespace: cv-system
+spec: 
+  selector: 
+    matchLabels: 
+      app: cv-agent-vsa-linux
+      sidecar_app: grok-exporter
+  replicas: 0
+  template: 
+    metadata: 
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9144"
+      labels: 
+        app: cv-agent-vsa-linux
+        sidecar_app: grok-exporter
+    spec: 
+      containers: 
+        - 
+          command: 
+            - /sbin/init
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "/opt/commvault/Base/qlogin -u 'admin' -clp 'Commvault!12' && /opt/commvault/Base/qoperation execscript -sn DeleteClient.sql -si $(hostname)"]
+          envFrom: 
+            - 
+              configMapRef: 
+                name: cv-agent
+          image: "commvaultrepo/proxy:test"
+          imagePullPolicy: IfNotPresent		  
+          name: cv-proxy-container
+          ports: 
+            - 
+              containerPort: 8400
+              name: cvdport
+          volumeMounts: 
+            - 
+              mountPath: /sys/fs/cgroup
+              name: cgroupvol
+            - 
+              mountPath: /opt/cvdocker_env
+              name: cv-config
+              readOnly: true
+            - 
+              mountPath: /etc/CommVaultRegistry
+              name: cv-data
+              subPath: Registry
+            - 
+              mountPath: /var/log/commvault/Log_Files
+              name: cv-data
+              subPath: Log_Files
+            - 
+              mountPath: /opt/commvault/iDataAgent/jobResults
+              name: cv-data
+              subPath: jobResults
+            - 
+              mountPath: /opt/commvault/Base/certificates
+              name: cv-data
+              subPath: certificates
+        - 
+          name: grok
+          image: commvaultrepo/grok-exporter:test
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 9144
+            protocol: TCP
+          volumeMounts:
+          - name: grok-config-volume
+            mountPath: /etc/grok_exporter
+          - name: cv-data
+            mountPath: /usr/share/app_log
+            subPath: Log_Files
+      volumes: 
+        - 
+          hostPath: 
+            path: /sys/fs/cgroup
+          name: cgroupvol
+        - 
+          configMap: 
+            name: cv-agent
+          name: cv-config
+        - 
+          name: cv-data
+          emptyDir: {}
+        - 
+          name: grok-config-volume
+          configMap:
+            name: grok-exporter
+

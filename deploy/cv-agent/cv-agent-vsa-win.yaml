@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cv-agent-vsa-win
+  labels:
+    app: cv-agent-vsa-win
+    sidecar_app: grok-exporter
+spec:
+  selector:
+    matchLabels:
+      app: cv-agent-vsa-win
+      sidecar_app: grok-exporter
+  replicas: 0
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9144"
+      labels:
+        app: cv-agent-vsa-win
+        sidecar_app: grok-exporter
+      name: cv-agent-vsa-win
+    spec:
+     serviceAccountName: cv-agent
+     containers:
+     - name: proxy
+       image: cv-vsa-win-proxy
+       imagePullPolicy: IfNotPresent
+       envFrom:
+       - configMapRef:
+           name: cv-agent
+       ports:
+       - containerPort: 8400
+       startupProbe:
+         exec:
+           command:
+           - "powershell"
+           - "-Command"
+           - "($env:CV_CLIENT_REGISTERED -eq 'yes')"
+         initialDelaySeconds: 80
+         failureThreshold: 5
+         periodSeconds: 10
+       livenessProbe:
+         tcpSocket:
+           port: 8400
+       lifecycle:
+         postStart:
+           exec:
+             command:
+             - "powershell"
+             - "-Command"
+             - "(Restart-Service -Force -DisplayName \"Commvault*\"); ((/cv/Base/simcallwrapper.exe -OpType 1000 -CSHost $env:CV_CSHOSTNAME -CSName $env:CV_CSCLIENTNAME -clientName $(hostname) -clientHostName $(hostname) -DisplayName $(hostname) -ClientGroup $env:CV_CLIENTGROUP -user $env:CV_COMMCELL_USER -password $env:CV_COMMCELL_PWD -output registerCS_output.xml) -and ($env:CV_CLIENT_REGISTERED='yes'))"
+         preStop:
+           exec:
+             command:
+             - "powershell"
+             - "-Command"
+             - "(/cv/Base/qlogin -u $env:CV_COMMCELL_USER -clp $env:CV_COMMCELL_PWD) -and (/cv/Base/qoperation execscript -sn DeleteClient.sql -si $(hostname))"
+       command:
+       - ping
+       - -t
+       - localhost
+       volumeMounts:
+       - mountPath: "/cv/Log Files"
+         name: cv-data
+     - name: grok
+       image: grok-exporter:test
+       imagePullPolicy: IfNotPresent
+       command:
+       - grok_exporter
+       - -config
+       - /etc/grok_exporter/config.yml
+       volumeMounts:
+       - mountPath: /usr/share/app_log
+         name: cv-data
+       - mountPath: /etc/grok_exporter
+         name: grok-config
+     volumes:
+     - name: cv-data
+       emptyDir: {}
+     - name: grok-config
+       configMap:
+         name: grok-exporter-vsa-win
+     nodeSelector:
+      kubernetes.io/os: windows
+     tolerations:
+      - key: "os"
+        operator: "Equal"
+        value: "windows"
+        effect: "NoSchedule"

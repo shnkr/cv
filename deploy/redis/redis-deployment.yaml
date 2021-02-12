@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cv-mq-redis
+  labels:
+    app: redis
+    tier: backend
+spec:
+  selector:
+    matchLabels:
+      app: redis
+      tier: backend
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+      labels:
+        app: redis
+        tier: backend
+    spec:
+      containers:
+      - name: master
+        image: k8s.gcr.io/redis
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - containerPort: 6379
+        resources:
+         limits:
+           cpu: "0.1"
+      - name: redis-exporter
+        image: oliver006/redis_exporter:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - containerPort: 9121
+        env:
+        - name: REDIS_EXPORTER_CHECK_SINGLE_KEYS
+          value: "vsa-workers-ready-ring, vsa-workers-pool, vsa-workers-busy, vsa-jobs-pending, o365-workers-ready-ring, o365-workers-pool, o365-workers-busy, o365-jobs-pending, cv-jobs-active, test-hash, test-list, test-set"
+        - name: REDIS_ADDR
+          value: "$(REDIS_PORT)"
